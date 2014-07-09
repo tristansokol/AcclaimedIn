@@ -1,0 +1,138 @@
+<html>
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script type="text/javascript" src="http://platform.linkedin.com/in.js">
+  api_key: %%%linkedinapikey%%%%
+  authorize: true
+  onLoad: onLinkedInLoad
+  credentials_cookie: true
+</script>
+<script type="text/javascript">
+var skillBadges;
+var groupList;
+var linkedInProfileId;
+
+function onLinkedInLoad() {
+  IN.Event.on(IN, "auth", function() {onLinkedInLogin();});
+  IN.Event.on(IN, "logout", function() {onLinkedInLogout();});
+}
+
+function onLinkedInLogout() {
+  setLoginBadge(false);
+}
+
+function onLinkedInLogin() {
+  // we pass field selectors as a single parameter (array of strings)
+  IN.API.Profile("me")
+    .fields(["id", "firstName", "lastName", "pictureUrl", "publicProfileUrl", "skills"])
+    .result(function(result) {
+	  linkedInProfileId = result.values[0].id;
+      setLoginBadge(result.values[0]);
+	  setSkills(result.values[0].skills.values);
+    })
+    .error(function(err) {
+      alert(err);
+    });
+}
+
+function showGroups() {
+	IN.API.Raw("people/~/group-memberships:(group:(id,name),membership-state)").result(setGroups);
+}
+
+function setLoginBadge(profile) {
+  if (!profile) {
+    profHTML = "<p>You are not logged in</p>";
+  }
+  else {
+    var pictureUrl = profile.pictureUrl || "http://static02.linkedin.com/scds/common/u/img/icon/icon_no_photo_80x80.png";
+    profHTML = "<p><a href=\"" + profile.publicProfileUrl + "\">";
+    profHTML = profHTML + "<img align=\"baseline\" src=\"" + pictureUrl + "\"></a>";      
+    profHTML = profHTML + "<br/> Welcome <a href=\"" + profile.publicProfileUrl + "\">";
+    profHTML = profHTML + profile.firstName + " " + profile.lastName + "</a>! <a href=\"#\" onclick=\"IN.User.logout(); return false;\">logout</a></p>";
+  }
+  $("#loginbadge").html(profHTML);
+  //$("#acclaimLoginBox").show();
+}
+function setSkills(skills) {
+  if (!skills) {
+    skillHTML = "<p>You are not logged in</p>";
+  }
+  else {
+	skillHTML = "<p>";
+	skillBadges = new Array(skills.length);
+	for (var i = 0; i < skills.length; i++) {
+		skillBadges[i] = skills[i].skill.name;
+		skillHTML = skillHTML + skills[i].skill.name + "&nbsp;|&nbsp;";
+	}
+	skillHTML = skillHTML + "</p>";
+  }
+  $("#skills").html(skillHTML);
+}
+function setGroups(groups) {
+	groupHTML = "";
+	groupList = new Array(groups.values.length);
+	for (var i in groups.values) {
+		IN.API.Raw("groups/"+ groups.values[i].group.id +":(id,name,short-description,description,relation-to-viewer:(membership-state,available-actions),posts,counts-by-category,is-open-to-non-members,category,website-url,locale,location:(country,postal-code),allow-member-invites,site-group-url,small-logo-url,large-logo-url)").result(displayGroup);
+	}
+}
+var groupIndex = 0;
+function displayGroup(group) {
+	groupList[groupIndex++] = group;
+	$("#groups").append(group.name + ':<br/><a href="javascript:showIframe(' + group.id + ');"><img src="' + group.smallLogoUrl + '" alt="Create/Show Badge for ' + group.name + '"/></a><br/><br/>');
+}
+
+function showIframe(groupId) {
+	$("#badges").attr("src", createBadgeUrl(groupId));
+}
+
+function createBadgeUrl(groupId) {
+	// this is stub
+	// make badge templates (name, description)
+	// issue badge (name, email, password)
+	var badgeUrl = "tristan.php?";
+	for (var i in groupList) {
+		if (groupList[i].id == groupId) {
+			//alert("Creating badge for \n "+ groupList[i].name + "\n Username=" + $('#acclaimLogin').val() + " Password=" + $('#acclaimPassword').val() );
+			badgeUrl += "bname=" + groupList[i].name;
+			badgeUrl += "&bdesc=" + groupList[i].shortDescription;
+			badgeUrl += "&aname=" + $('#acclaimLogin').val();
+			badgeUrl += "&apass=" + $('#acclaimPassword').val();
+			badgeUrl += "&biurl=" + groupList[i].smallLogoUrl;
+		}
+	}
+	return badgeUrl;
+}
+function getBadges(group) {
+	// this is a stub
+	//document.getElementById("badges").innerHTML += group.name + ':<br/><a href="' + group.websiteUrl + '"><img src="' + group.smallLogoUrl + '" alt="' + group.name + '"/></a><br/>';
+}
+</script>
+
+<body>
+<script type="in/Login">
+
+</script>
+
+<div style="float:left;width:400px">
+<div id="loginbadge">
+  <p>Login badge renders here if the current user is authorized.</p>
+</div>
+<div id="acclaimLoginBox">
+Acclaim Login (email): <input type="text" id="acclaimLogin" name="acclaimLogin"/>
+<br/>
+Acclaim Password: <input type="password" id="acclaimPassword" name="acclaimPassword" />
+<button onClick="showGroups()">OK</button>
+</div>
+<p>Groups:</p>
+<div id="groups">
+</div>
+<p>Skills:</p>
+<div id="skills">
+</div>
+</div>
+<div style="float:right;">
+<p>Badges:</p>
+<iframe style="float:right;width:800px;height:600px;" id="badges" src=""></iframe>
+</div>
+</body>
+</html>
